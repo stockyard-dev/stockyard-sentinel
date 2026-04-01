@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  sentinel:
+    build: .
+    ports:
+      - "9150:9150"
+    environment:
+      - PORT=9150
+      - DATA_DIR=/data
+      - SENTINEL_LICENSE_KEY=
+    volumes:
+      - sentinel_data:/data
+    restart: unless-stopped
+volumes:
+  sentinel_data:
