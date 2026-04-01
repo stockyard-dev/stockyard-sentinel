@@ -1,120 +1,43 @@
 package server
 
 var dashboardHTML = []byte(`<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Stockyard Sentinel</title>
-<style>
-  :root {
-    --bg: #1a1410;
-    --surface: #241c15;
-    --border: #3d2e1e;
-    --rust: #c4622d;
-    --leather: #8b5e3c;
-    --cream: #f5e6c8;
-    --muted: #7a6550;
-    --text: #e8d5b0;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace, sans-serif; min-height: 100vh; }
-  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; }
-  .logo { color: var(--rust); font-size: 1.25rem; font-weight: 700; letter-spacing: 0.05em; }
-  .badge { background: var(--rust); color: var(--cream); font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 3px; font-weight: 600; text-transform: uppercase; }
-  main { max-width: 960px; margin: 2rem auto; padding: 0 2rem; }
-  .hero { text-align: center; padding: 3rem 0 2rem; }
-  .hero h1 { font-size: 2rem; color: var(--cream); margin-bottom: 0.5rem; }
-  .hero p { color: var(--muted); font-size: 0.95rem; max-width: 480px; margin: 0 auto; }
-  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 2rem 0; }
-  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.25rem; text-align: center; }
-  .stat-value { font-size: 1.75rem; font-weight: 700; color: var(--rust); }
-  .stat-label { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.5rem; margin-bottom: 1rem; }
-  .card h2 { font-size: 1rem; color: var(--cream); margin-bottom: 1rem; }
-  .tier-box { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-  .tier { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 1rem; }
-  .tier.pro { border-color: var(--rust); }
-  .tier-name { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 0.5rem; }
-  .tier.pro .tier-name { color: var(--rust); }
-  .tier-desc { font-size: 0.85rem; color: var(--text); }
-  .tier-price { font-size: 0.8rem; color: var(--leather); margin-top: 0.5rem; }
-  footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.75rem; }
-  footer a { color: var(--leather); text-decoration: none; }
-  .endpoint-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-  .endpoint-table th { text-align: left; color: var(--muted); padding: 0.5rem; border-bottom: 1px solid var(--border); }
-  .endpoint-table td { padding: 0.5rem; border-bottom: 1px solid var(--border); color: var(--text); }
-  .method { color: var(--rust); font-weight: 600; }
-</style>
-</head>
-<body>
-<header>
-  <span class="logo">⬡ Stockyard</span>
-  <span style="color:var(--muted);">/</span>
-  <span style="color:var(--cream);font-weight:600;">Sentinel</span>
-  <span class="badge">v0.1.0</span>
-</header>
-<main>
-  <div class="hero">
-    <h1>Sentinel</h1>
-    <p>On-call schedule and incident log — who's on call, what incidents happened, what was the resolution</p>
-  </div>
-  <div class="stats">
-    <div class="stat">
-      <div class="stat-value" id="stat-items">—</div>
-      <div class="stat-label">Total Items</div>
-    </div>
-    <div class="stat">
-      <div class="stat-value">9150</div>
-      <div class="stat-label">Port</div>
-    </div>
-    <div class="stat">
-      <div class="stat-value" id="stat-tier">—</div>
-      <div class="stat-label">Tier</div>
-    </div>
-  </div>
-  <div class="card">
-    <h2>Tier &amp; Limits</h2>
-    <div class="tier-box">
-      <div class="tier">
-        <div class="tier-name">Free</div>
-        <div class="tier-desc">5 members, 3 incidents/mo</div>
-        <div class="tier-price">$0/mo</div>
-      </div>
-      <div class="tier pro">
-        <div class="tier-name">Pro</div>
-        <div class="tier-desc">Unlimited members and incidents</div>
-        <div class="tier-price">$4.99/mo</div>
-      </div>
-    </div>
-  </div>
-  <div class="card">
-    <h2>API Endpoints</h2>
-    <table class="endpoint-table">
-      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
-      <tbody>
-        <tr><td class="method">GET</td><td>/health</td><td>Health check</td></tr>
-        <tr><td class="method">GET</td><td>/api/version</td><td>Version info</td></tr>
-        <tr><td class="method">GET</td><td>/api/limits</td><td>Current tier limits</td></tr>
-        <tr><td class="method">GET</td><td>/api/items</td><td>List items</td></tr>
-        <tr><td class="method">POST</td><td>/api/items</td><td>Create item</td></tr>
-        <tr><td class="method">GET</td><td>/api/items/{id}</td><td>Get item</td></tr>
-        <tr><td class="method">PUT</td><td>/api/items/{id}</td><td>Update item</td></tr>
-        <tr><td class="method">DELETE</td><td>/api/items/{id}</td><td>Delete item</td></tr>
-      </tbody>
-    </table>
-  </div>
-</main>
-<footer>
-  <a href="https://stockyard.dev">stockyard.dev</a> &mdash; Operations & Teams &mdash; Apache 2.0
-</footer>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Stockyard Sentinel</title><style>:root{--bg:#1a1410;--surface:#241c15;--border:#3d2e1e;--rust:#c4622d;--leather:#8b5e3c;--cream:#f5e6c8;--muted:#7a6550;--text:#e8d5b0}*{box-sizing:border-box;margin:0;padding:0}body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace,sans-serif;min-height:100vh}header{background:var(--surface);border-bottom:1px solid var(--border);padding:1rem 2rem;display:flex;align-items:center;gap:1rem}.logo{color:var(--rust);font-size:1.25rem;font-weight:700}.badge{background:var(--rust);color:var(--cream);font-size:0.65rem;padding:0.2rem 0.5rem;border-radius:3px;font-weight:600;text-transform:uppercase}main{max-width:1100px;margin:0 auto;padding:2rem}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:2rem}.stat{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1.25rem;text-align:center}.stat-value{font-size:1.75rem;font-weight:700;color:var(--rust)}.stat-label{font-size:0.75rem;color:var(--muted);margin-top:0.25rem;text-transform:uppercase;letter-spacing:0.05em}.grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1.5rem}.card h2{font-size:0.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:1rem}.form-row{display:flex;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap;align-items:flex-start}select,input,textarea{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.5rem 0.75rem;border-radius:4px;font-family:inherit;font-size:0.85rem}.form-row select,.form-row input{flex:1}textarea{width:100%;min-height:80px;resize:vertical}.btn{background:var(--rust);color:var(--cream);border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;font-family:inherit;font-size:0.85rem;font-weight:600}.btn:hover{opacity:0.85}.btn-sm{padding:0.25rem 0.6rem;font-size:0.75rem}.btn-danger{background:#7a2020}table{width:100%;border-collapse:collapse;font-size:0.82rem}th{text-align:left;color:var(--muted);padding:0.5rem;border-bottom:1px solid var(--border);font-size:0.75rem;text-transform:uppercase}td{padding:0.5rem;border-bottom:1px solid var(--border)}.empty{color:var(--muted);font-size:0.85rem;padding:1rem 0;text-align:center}.full{grid-column:1/-1}.badge-g{background:#1a3a1a;color:#5cb85c;border:1px solid #2d5a2d;border-radius:3px;padding:0.1rem 0.4rem;font-size:0.72rem}.badge-r{background:#3a1a1a;color:#d9534f;border:1px solid #5a2d2d;border-radius:3px;padding:0.1rem 0.4rem;font-size:0.72rem}.badge-y{background:#3a2f1a;color:#f0ad4e;border:1px solid #5a4a2d;border-radius:3px;padding:0.1rem 0.4rem;font-size:0.72rem}</style></head>
+<body><header><span class="logo">&#x2B21; Stockyard</span><span style="color:var(--muted)">/</span><span style="color:var(--cream);font-weight:600">Sentinel</span><span class="badge">On-Call</span></header>
+<main><div class="stats"><div class="stat"><div class="stat-value" id="s1">0</div><div class="stat-label">Teams</div></div><div class="stat"><div class="stat-value" id="s2">0</div><div class="stat-label">Shifts</div></div><div class="stat"><div class="stat-value" id="s3">FREE</div><div class="stat-label">Tier</div></div></div><div class="grid">
+<div class="card"><h2>New Team</h2>
+<div class="form-row"><input id="f-tname" placeholder="Team name"></div>
+<div class="form-row"><input id="f-slack" placeholder="Slack webhook URL (optional)"></div>
+<button class="btn" onclick="createTeam()">Create Team</button></div>
+<div class="card" id="oncall-card"><h2>Current On-Call</h2><div id="oncall-display"><div class="empty">Select a team</div></div></div>
+<div class="card full"><h2>Teams</h2><div id="teams-list"><div class="empty">No teams</div></div></div>
+<div class="card full" id="team-detail" style="display:none">
+<h2>Team: <span id="team-name-label" style="color:var(--cream)"></span></h2>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+<div><h2>Members</h2>
+<div class="form-row"><input id="f-mname" placeholder="Name"><input id="f-memail" placeholder="email@example.com"></div>
+<div class="form-row"><input id="f-mtz" placeholder="Timezone (UTC)"><button class="btn btn-sm" onclick="addMember()">Add</button></div>
+<div id="members-list"><div class="empty">No members</div></div></div>
+<div><h2>Schedule Shift</h2>
+<div class="form-row"><input id="f-smember" type="number" placeholder="Member ID"></div>
+<div class="form-row"><input id="f-sstart" type="datetime-local" placeholder="Start"><input id="f-send" type="datetime-local" placeholder="End"></div>
+<button class="btn btn-sm" onclick="createShift()">Add Shift</button>
+<h2 style="margin-top:1rem">Shifts</h2>
+<table><thead><tr><th>Who</th><th>Start</th><th>End</th></tr></thead>
+<tbody id="shifts-body"><tr><td colspan="3" class="empty">No shifts</td></tr></tbody></table></div></div>
+</div>
+</div></main>
 <script>
-fetch('/api/limits').then(r=>r.json()).then(d=>{
-  document.getElementById('stat-tier').textContent = d.tier.toUpperCase();
-});
-fetch('/api/items').then(r=>r.json()).then(d=>{
-  document.getElementById('stat-items').textContent = Array.isArray(d) ? d.length : '0';
-});
-</script>
-</body>
-</html>`)
+async function api(m,p,bd){var o={method:m,headers:{"Content-Type":"application/json"}};if(bd)o.body=JSON.stringify(bd);var r=await fetch(p,o);try{return await r.json();}catch(e){return {};}}  
+var currentTeam=null;
+async function load(){var s=await api("GET","/api/stats");var l=await api("GET","/api/limits");document.getElementById("s1").textContent=s.teams||0;document.getElementById("s2").textContent=s.shifts||0;document.getElementById("s3").textContent=(l.tier||"free").toUpperCase();loadTeams();}
+async function loadTeams(){var data=await api("GET","/api/teams");var el=document.getElementById("teams-list");if(!data||!data.length){el.innerHTML="<div class='empty'>No teams</div>";return;}el.innerHTML=data.map(function(t){return "<div style='display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;border-bottom:1px solid var(--border)'><span style='cursor:pointer;color:var(--cream)' onclick='selectTeam("+t.id+",\""+t.name+"\")'>"+t.name+"</span><div style='display:flex;gap:0.25rem'><button class='btn btn-sm' onclick='checkOncall("+t.id+")'>On-call?</button><button class='btn btn-sm btn-danger' onclick='deleteTeam("+t.id+")'>Del</button></div></div>";}).join("");}
+async function selectTeam(id,name){currentTeam=id;document.getElementById("team-detail").style.display="block";document.getElementById("team-name-label").textContent=name;loadMembers();loadShifts();}
+async function loadMembers(){if(!currentTeam)return;var data=await api("GET","/api/teams/"+currentTeam+"/members");var el=document.getElementById("members-list");if(!data||!data.length){el.innerHTML="<div class='empty'>No members</div>";return;}el.innerHTML=data.map(function(m){return "<div style='padding:0.4rem 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between'><span style='color:var(--cream)'>"+m.name+" <span style='color:var(--muted);font-size:0.75rem'>(ID:"+m.id+")</span></span><span style='font-size:0.75rem;color:var(--leather)'>"+m.email+"</span></div>";}).join("");}
+async function loadShifts(){if(!currentTeam)return;var data=await api("GET","/api/teams/"+currentTeam+"/shifts");var tbody=document.getElementById("shifts-body");if(!data||!data.length){tbody.innerHTML="<tr><td colspan='3' class='empty'>No shifts</td></tr>";return;}tbody.innerHTML=data.map(function(s){return "<tr><td style='color:var(--cream)'>"+s.member_name+"</td><td style='font-size:0.75rem;color:var(--muted)'>"+new Date(s.starts_at).toLocaleString()+"</td><td style='font-size:0.75rem;color:var(--muted)'>"+new Date(s.ends_at).toLocaleString()+"</td></tr>";}).join("");}
+async function checkOncall(id){var res=await api("GET","/api/teams/"+id+"/oncall");var el=document.getElementById("oncall-display");if(res.status==="no_oncall"){el.innerHTML="<div style='color:var(--muted)'>Nobody on call right now</div>";}else{el.innerHTML="<div style='color:var(--cream);font-size:1.1rem;font-weight:600'>"+res.member_name+"</div><div style='font-size:0.8rem;color:var(--muted);margin-top:0.5rem'>Until: "+new Date(res.ends_at).toLocaleString()+"</div>";}}
+async function createTeam(){var t={name:document.getElementById("f-tname").value.trim(),slack_webhook:document.getElementById("f-slack").value.trim()};if(!t.name){alert("Name required");return;}await api("POST","/api/teams",t);document.getElementById("f-tname").value="";load();}
+async function deleteTeam(id){if(!confirm("Delete team?"))return;await api("DELETE","/api/teams/"+id);load();}
+async function addMember(){var m={name:document.getElementById("f-mname").value.trim(),email:document.getElementById("f-memail").value.trim(),timezone:document.getElementById("f-mtz").value.trim()||"UTC"};if(!m.name){alert("Name required");return;}await api("POST","/api/teams/"+currentTeam+"/members",m);document.getElementById("f-mname").value="";loadMembers();}
+async function createShift(){var mid=parseInt(document.getElementById("f-smember").value);var st=document.getElementById("f-sstart").value;var et=document.getElementById("f-send").value;if(!mid||!st||!et){alert("Member ID, start and end required");return;}var res=await api("POST","/api/teams/"+currentTeam+"/shifts",{member_id:mid,starts_at:st.replace("T",":").slice(0,16).replace(":","-").replace("-","T"),ends_at:et.replace("T",":").slice(0,16).replace(":","-").replace("-","T")});if(res.error){alert(res.error);return;}loadShifts();}
+load();
+</script></body></html>`)
