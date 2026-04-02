@@ -1,19 +1,37 @@
 package store
-import("database/sql";"fmt";"os";"path/filepath";"time";_ "modernc.org/sqlite")
-type DB struct{*sql.DB}
-type Team struct{ID int64 `json:"id"`;Name string `json:"name"`;SlackWebhook string `json:"slack_webhook"`;EmailAlert string `json:"email_alert"`;CreatedAt time.Time `json:"created_at"`}
-type Member struct{ID int64 `json:"id"`;TeamID int64 `json:"team_id"`;Name string `json:"name"`;Email string `json:"email"`;Phone string `json:"phone"`;TZ string `json:"timezone"`;CreatedAt time.Time `json:"created_at"`}
-type Shift struct{ID int64 `json:"id"`;TeamID int64 `json:"team_id"`;MemberID int64 `json:"member_id"`;MemberName string `json:"member_name,omitempty"`;StartsAt time.Time `json:"starts_at"`;EndsAt time.Time `json:"ends_at"`;Notes string `json:"notes"`;CreatedAt time.Time `json:"created_at"`}
-func Open(dataDir string)(*DB,error){if err:=os.MkdirAll(dataDir,0755);err!=nil{return nil,fmt.Errorf("mkdir: %w",err)};dsn:=filepath.Join(dataDir,"sentinel.db")+"?_journal_mode=WAL&_busy_timeout=5000";db,err:=sql.Open("sqlite",dsn);if err!=nil{return nil,fmt.Errorf("open: %w",err)};db.SetMaxOpenConns(1);if err:=migrate(db);err!=nil{return nil,fmt.Errorf("migrate: %w",err)};return &DB{db},nil}
-func migrate(db *sql.DB)error{_,err:=db.Exec(`CREATE TABLE IF NOT EXISTS teams(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,slack_webhook TEXT DEFAULT '',email_alert TEXT DEFAULT '',created_at DATETIME DEFAULT CURRENT_TIMESTAMP);CREATE TABLE IF NOT EXISTS members(id INTEGER PRIMARY KEY AUTOINCREMENT,team_id INTEGER NOT NULL,name TEXT NOT NULL,email TEXT DEFAULT '',phone TEXT DEFAULT '',timezone TEXT DEFAULT 'UTC',created_at DATETIME DEFAULT CURRENT_TIMESTAMP);CREATE TABLE IF NOT EXISTS shifts(id INTEGER PRIMARY KEY AUTOINCREMENT,team_id INTEGER NOT NULL,member_id INTEGER NOT NULL,starts_at DATETIME NOT NULL,ends_at DATETIME NOT NULL,notes TEXT DEFAULT '',created_at DATETIME DEFAULT CURRENT_TIMESTAMP);`);return err}
-func(db *DB)ListTeams()([]Team,error){rows,err:=db.Query(`SELECT id,name,slack_webhook,email_alert,created_at FROM teams ORDER BY created_at DESC`);if err!=nil{return nil,err};defer rows.Close();var out[]Team;for rows.Next(){var t Team;rows.Scan(&t.ID,&t.Name,&t.SlackWebhook,&t.EmailAlert,&t.CreatedAt);out=append(out,t)};return out,nil}
-func(db *DB)CreateTeam(t *Team)error{res,err:=db.Exec(`INSERT INTO teams(name,slack_webhook,email_alert)VALUES(?,?,?)`,t.Name,t.SlackWebhook,t.EmailAlert);if err!=nil{return err};t.ID,_=res.LastInsertId();return nil}
-func(db *DB)DeleteTeam(id int64)error{_,err:=db.Exec(`DELETE FROM teams WHERE id=?`,id);return err}
-func(db *DB)ListMembers(teamID int64)([]Member,error){rows,err:=db.Query(`SELECT id,team_id,name,email,phone,timezone,created_at FROM members WHERE team_id=? ORDER BY name`,teamID);if err!=nil{return nil,err};defer rows.Close();var out[]Member;for rows.Next(){var m Member;rows.Scan(&m.ID,&m.TeamID,&m.Name,&m.Email,&m.Phone,&m.TZ,&m.CreatedAt);out=append(out,m)};return out,nil}
-func(db *DB)CreateMember(m *Member)error{res,err:=db.Exec(`INSERT INTO members(team_id,name,email,phone,timezone)VALUES(?,?,?,?,?)`,m.TeamID,m.Name,m.Email,m.Phone,m.TZ);if err!=nil{return err};m.ID,_=res.LastInsertId();return nil}
-func(db *DB)DeleteMember(id int64)error{_,err:=db.Exec(`DELETE FROM members WHERE id=?`,id);return err}
-func(db *DB)ListShifts(teamID int64)([]Shift,error){rows,err:=db.Query(`SELECT s.id,s.team_id,s.member_id,COALESCE(m.name,''),s.starts_at,s.ends_at,s.notes,s.created_at FROM shifts s LEFT JOIN members m ON m.id=s.member_id WHERE s.team_id=? ORDER BY s.starts_at DESC LIMIT 50`,teamID);if err!=nil{return nil,err};defer rows.Close();var out[]Shift;for rows.Next(){var s Shift;rows.Scan(&s.ID,&s.TeamID,&s.MemberID,&s.MemberName,&s.StartsAt,&s.EndsAt,&s.Notes,&s.CreatedAt);out=append(out,s)};return out,nil}
-func(db *DB)CreateShift(s *Shift)error{res,err:=db.Exec(`INSERT INTO shifts(team_id,member_id,starts_at,ends_at,notes)VALUES(?,?,?,?,?)`,s.TeamID,s.MemberID,s.StartsAt,s.EndsAt,s.Notes);if err!=nil{return err};s.ID,_=res.LastInsertId();return nil}
-func(db *DB)CurrentOnCall(teamID int64)(*Shift,error){now:=time.Now().UTC().Format("2006-01-02 15:04:05");s:=&Shift{};err:=db.QueryRow(`SELECT s.id,s.team_id,s.member_id,COALESCE(m.name,''),s.starts_at,s.ends_at,s.notes,s.created_at FROM shifts s LEFT JOIN members m ON m.id=s.member_id WHERE s.team_id=? AND s.starts_at<=? AND s.ends_at>=? LIMIT 1`,teamID,now,now).Scan(&s.ID,&s.TeamID,&s.MemberID,&s.MemberName,&s.StartsAt,&s.EndsAt,&s.Notes,&s.CreatedAt);if err==sql.ErrNoRows{return nil,nil};return s,err}
-func(db *DB)CountTeams()(int,error){var n int;db.QueryRow(`SELECT COUNT(*) FROM teams`).Scan(&n);return n,nil}
-func(db *DB)CountShifts()(int,error){var n int;db.QueryRow(`SELECT COUNT(*) FROM shifts`).Scan(&n);return n,nil}
+import ("database/sql";"fmt";"os";"path/filepath";"strings";"time";_ "modernc.org/sqlite")
+type DB struct{db *sql.DB}
+type AlertRule struct{ID string `json:"id"`;Name string `json:"name"`;Severity string `json:"severity"`;Description string `json:"description,omitempty"`;Channel string `json:"channel,omitempty"`;Enabled bool `json:"enabled"`;CreatedAt string `json:"created_at"`;FireCount int `json:"fire_count"`;LastFired string `json:"last_fired,omitempty"`}
+type Alert struct{ID string `json:"id"`;RuleID string `json:"rule_id"`;RuleName string `json:"rule_name,omitempty"`;Severity string `json:"severity"`;Status string `json:"status"`;Message string `json:"message,omitempty"`;Source string `json:"source,omitempty"`;FiredAt string `json:"fired_at"`;AckedAt string `json:"acked_at,omitempty"`;ResolvedAt string `json:"resolved_at,omitempty"`;AckedBy string `json:"acked_by,omitempty"`}
+func Open(d string)(*DB,error){if err:=os.MkdirAll(d,0755);err!=nil{return nil,err};db,err:=sql.Open("sqlite",filepath.Join(d,"sentinel.db")+"?_journal_mode=WAL&_busy_timeout=5000");if err!=nil{return nil,err}
+for _,q:=range[]string{
+`CREATE TABLE IF NOT EXISTS rules(id TEXT PRIMARY KEY,name TEXT NOT NULL,severity TEXT DEFAULT 'warning',description TEXT DEFAULT '',channel TEXT DEFAULT '',enabled INTEGER DEFAULT 1,created_at TEXT DEFAULT(datetime('now')))`,
+`CREATE TABLE IF NOT EXISTS alerts(id TEXT PRIMARY KEY,rule_id TEXT DEFAULT '',rule_name TEXT DEFAULT '',severity TEXT DEFAULT 'warning',status TEXT DEFAULT 'firing',message TEXT DEFAULT '',source TEXT DEFAULT '',fired_at TEXT DEFAULT(datetime('now')),acked_at TEXT DEFAULT '',resolved_at TEXT DEFAULT '',acked_by TEXT DEFAULT '')`,
+`CREATE INDEX IF NOT EXISTS idx_alerts_rule ON alerts(rule_id)`,
+`CREATE INDEX IF NOT EXISTS idx_alerts_status ON alerts(status)`,
+}{if _,err:=db.Exec(q);err!=nil{return nil,fmt.Errorf("migrate: %w",err)}};return &DB{db:db},nil}
+func(d *DB)Close()error{return d.db.Close()}
+func genID()string{return fmt.Sprintf("%d",time.Now().UnixNano())}
+func now()string{return time.Now().UTC().Format(time.RFC3339)}
+func(d *DB)CreateRule(r *AlertRule)error{r.ID=genID();r.CreatedAt=now();if r.Severity==""{r.Severity="warning"};en:=1;if!r.Enabled{en=0}
+_,err:=d.db.Exec(`INSERT INTO rules(id,name,severity,description,channel,enabled,created_at)VALUES(?,?,?,?,?,?,?)`,r.ID,r.Name,r.Severity,r.Description,r.Channel,en,r.CreatedAt);return err}
+func(d *DB)GetRule(id string)*AlertRule{var r AlertRule;var en int;if d.db.QueryRow(`SELECT id,name,severity,description,channel,enabled,created_at FROM rules WHERE id=?`,id).Scan(&r.ID,&r.Name,&r.Severity,&r.Description,&r.Channel,&en,&r.CreatedAt)!=nil{return nil};r.Enabled=en==1
+d.db.QueryRow(`SELECT COUNT(*) FROM alerts WHERE rule_id=?`,r.ID).Scan(&r.FireCount);d.db.QueryRow(`SELECT fired_at FROM alerts WHERE rule_id=? ORDER BY fired_at DESC LIMIT 1`,r.ID).Scan(&r.LastFired);return &r}
+func(d *DB)ListRules()[]AlertRule{rows,_:=d.db.Query(`SELECT id,name,severity,description,channel,enabled,created_at FROM rules ORDER BY name`);if rows==nil{return nil};defer rows.Close()
+var o []AlertRule;for rows.Next(){var r AlertRule;var en int;rows.Scan(&r.ID,&r.Name,&r.Severity,&r.Description,&r.Channel,&en,&r.CreatedAt);r.Enabled=en==1
+d.db.QueryRow(`SELECT COUNT(*) FROM alerts WHERE rule_id=?`,r.ID).Scan(&r.FireCount);d.db.QueryRow(`SELECT fired_at FROM alerts WHERE rule_id=? ORDER BY fired_at DESC LIMIT 1`,r.ID).Scan(&r.LastFired);o=append(o,r)};return o}
+func(d *DB)DeleteRule(id string)error{_,err:=d.db.Exec(`DELETE FROM rules WHERE id=?`,id);return err}
+func(d *DB)ToggleRule(id string)error{_,err:=d.db.Exec(`UPDATE rules SET enabled=1-enabled WHERE id=?`,id);return err}
+func(d *DB)Fire(ruleID,message,source string)*Alert{r:=d.GetRule(ruleID);sev:="warning";name:=""
+if r!=nil{sev=r.Severity;name=r.Name}
+a:=&Alert{ID:genID(),RuleID:ruleID,RuleName:name,Severity:sev,Status:"firing",Message:message,Source:source,FiredAt:now()}
+d.db.Exec(`INSERT INTO alerts(id,rule_id,rule_name,severity,status,message,source,fired_at)VALUES(?,?,?,?,?,?,?,?)`,a.ID,a.RuleID,a.RuleName,a.Severity,a.Status,a.Message,a.Source,a.FiredAt);return a}
+func(d *DB)Ack(id,by string)error{_,err:=d.db.Exec(`UPDATE alerts SET status='acked',acked_at=?,acked_by=? WHERE id=?`,now(),by,id);return err}
+func(d *DB)Resolve(id string)error{_,err:=d.db.Exec(`UPDATE alerts SET status='resolved',resolved_at=? WHERE id=?`,now(),id);return err}
+func(d *DB)ListAlerts(status string,limit int)[]Alert{if limit<=0{limit=100};q:=`SELECT id,rule_id,rule_name,severity,status,message,source,fired_at,acked_at,resolved_at,acked_by FROM alerts`;args:=[]any{}
+if status!=""&&status!="all"{q+=` WHERE status=?`;args=append(args,status)};q+=` ORDER BY fired_at DESC LIMIT ?`;args=append(args,limit)
+rows,_:=d.db.Query(q,args...);if rows==nil{return nil};defer rows.Close()
+var o []Alert;for rows.Next(){var a Alert;rows.Scan(&a.ID,&a.RuleID,&a.RuleName,&a.Severity,&a.Status,&a.Message,&a.Source,&a.FiredAt,&a.AckedAt,&a.ResolvedAt,&a.AckedBy);o=append(o,a)};return o}
+type Stats struct{Rules int `json:"rules"`;Firing int `json:"firing"`;Acked int `json:"acked"`;Resolved int `json:"resolved"`;Total int `json:"total"`}
+func(d *DB)Stats()Stats{var s Stats;d.db.QueryRow(`SELECT COUNT(*) FROM rules`).Scan(&s.Rules);d.db.QueryRow(`SELECT COUNT(*) FROM alerts WHERE status='firing'`).Scan(&s.Firing);d.db.QueryRow(`SELECT COUNT(*) FROM alerts WHERE status='acked'`).Scan(&s.Acked);d.db.QueryRow(`SELECT COUNT(*) FROM alerts WHERE status='resolved'`).Scan(&s.Resolved);d.db.QueryRow(`SELECT COUNT(*) FROM alerts`).Scan(&s.Total);return s}
+var _=strings.Join
