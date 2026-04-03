@@ -6,7 +6,9 @@ s.mux.HandleFunc("GET /api/rules",s.listRules);s.mux.HandleFunc("POST /api/rules
 s.mux.HandleFunc("POST /api/fire",s.fire)
 s.mux.HandleFunc("GET /api/alerts",s.listAlerts);s.mux.HandleFunc("POST /api/alerts/{id}/ack",s.ack);s.mux.HandleFunc("POST /api/alerts/{id}/resolve",s.resolve)
 s.mux.HandleFunc("GET /api/stats",s.stats);s.mux.HandleFunc("GET /api/health",s.health)
-s.mux.HandleFunc("GET /ui",s.dashboard);s.mux.HandleFunc("GET /ui/",s.dashboard);s.mux.HandleFunc("GET /",s.root);return s}
+s.mux.HandleFunc("GET /ui",s.dashboard);s.mux.HandleFunc("GET /ui/",s.dashboard);s.mux.HandleFunc("GET /",s.root);
+s.mux.HandleFunc("GET /api/tier",func(w http.ResponseWriter,r *http.Request){wj(w,200,map[string]any{"tier":s.limits.Tier,"upgrade_url":"https://stockyard.dev/sentinel/"})})
+return s}
 func(s *Server)ServeHTTP(w http.ResponseWriter,r *http.Request){s.mux.ServeHTTP(w,r)}
 func wj(w http.ResponseWriter,c int,v any){w.Header().Set("Content-Type","application/json");w.WriteHeader(c);json.NewEncoder(w).Encode(v)}
 func we(w http.ResponseWriter,c int,m string){wj(w,c,map[string]string{"error":m})}
