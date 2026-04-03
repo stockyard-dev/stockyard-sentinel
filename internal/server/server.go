@@ -1,7 +1,7 @@
 package server
 import ("encoding/json";"log";"net/http";"github.com/stockyard-dev/stockyard-sentinel/internal/store")
-type Server struct{db *store.DB;mux *http.ServeMux}
-func New(db *store.DB)*Server{s:=&Server{db:db,mux:http.NewServeMux()}
+type Server struct{db *store.DB;mux *http.ServeMux;limits Limits}
+func New(db *store.DB,limits Limits)*Server{s:=&Server{db:db,mux:http.NewServeMux(),limits:limits}
 s.mux.HandleFunc("GET /api/rules",s.listRules);s.mux.HandleFunc("POST /api/rules",s.createRule);s.mux.HandleFunc("GET /api/rules/{id}",s.getRule);s.mux.HandleFunc("DELETE /api/rules/{id}",s.deleteRule);s.mux.HandleFunc("POST /api/rules/{id}/toggle",s.toggleRule)
 s.mux.HandleFunc("POST /api/fire",s.fire)
 s.mux.HandleFunc("GET /api/alerts",s.listAlerts);s.mux.HandleFunc("POST /api/alerts/{id}/ack",s.ack);s.mux.HandleFunc("POST /api/alerts/{id}/resolve",s.resolve)
