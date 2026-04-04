@@ -1,31 +1,81 @@
 package server
+
 import "net/http"
-func(s *Server)dashboard(w http.ResponseWriter,r *http.Request){w.Header().Set("Content-Type","text/html; charset=utf-8");w.Write([]byte(dashHTML))}
-const dashHTML=`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sentinel</title>
-<style>:root{--bg:#1a1410;--bg2:#241e18;--bg3:#2e261e;--rust:#c45d2c;--rl:#e8753a;--leather:#a0845c;--cream:#f0e6d3;--cd:#bfb5a3;--cm:#7a7060;--gold:#d4a843;--green:#4a9e5c;--red:#c44040;--mono:'JetBrains Mono',Consolas,monospace;--serif:'Libre Baskerville',Georgia,serif}*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--cream);font-family:var(--mono);font-size:13px;line-height:1.6}.hdr{padding:.6rem 1.2rem;border-bottom:1px solid var(--bg3);display:flex;justify-content:space-between;align-items:center}.hdr h1{font-family:var(--serif);font-size:1rem}.hdr h1 span{color:var(--rl)}.main{max-width:800px;margin:0 auto;padding:1rem}.btn{font-family:var(--mono);font-size:.68rem;padding:.3rem .6rem;border:1px solid;cursor:pointer;background:transparent}.btn-p{border-color:var(--rust);color:var(--rl)}.btn-p:hover{background:var(--rust);color:var(--cream)}.btn-s{border-color:var(--green);color:var(--green)}.btn-s:hover{background:var(--green);color:var(--bg)}.overview{display:flex;gap:1.5rem;margin-bottom:1rem;font-size:.7rem;color:var(--leather)}.overview .stat b{display:block;font-size:1.4rem;color:var(--cream)}.tabs{display:flex;gap:0;margin-bottom:1rem;border-bottom:1px solid var(--bg3)}.tab{padding:.4rem 1rem;cursor:pointer;font-size:.75rem;color:var(--cm);border-bottom:2px solid transparent}.tab:hover{color:var(--cream)}.tab.active{color:var(--rl);border-bottom-color:var(--rl)}.alert-row{display:flex;align-items:center;gap:.5rem;padding:.5rem;border-bottom:1px solid var(--bg3);font-size:.72rem}.sev{font-size:.6rem;padding:.1rem .3rem;border:1px solid;border-radius:2px;font-weight:700;width:55px;text-align:center}.sev-critical{border-color:var(--red);color:var(--red);background:rgba(196,64,64,.1)}.sev-warning{border-color:var(--gold);color:var(--gold)}.sev-info{border-color:var(--cm);color:var(--cm)}.st-firing{color:var(--red)}.st-acked{color:var(--gold)}.st-resolved{color:var(--green)}.alert-msg{flex:1}.alert-src{font-size:.6rem;color:var(--cm)}.empty{text-align:center;padding:2rem;color:var(--cm);font-style:italic;font-family:var(--serif)}.modal-bg{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:100}.modal{background:var(--bg2);border:1px solid var(--bg3);padding:1.5rem;width:90%;max-width:450px}.modal h2{font-family:var(--serif);font-size:.9rem;margin-bottom:1rem}label.fl{display:block;font-size:.65rem;color:var(--leather);text-transform:uppercase;letter-spacing:1px;margin-bottom:.2rem;margin-top:.5rem}input[type=text],select{background:var(--bg);border:1px solid var(--bg3);color:var(--cream);padding:.35rem .5rem;font-family:var(--mono);font-size:.78rem;width:100%;outline:none}</style>
-<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital@0;1&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-</head><body><div class="hdr"><h1><span>Sentinel</span></h1><button class="btn btn-p" onclick="showNewRule()">+ Rule</button></div>
-<div class="main"><div id="upgrade-banner" style="display:none;background:#241e18;border:1px solid #8b3d1a;border-left:3px solid #c45d2c;padding:.6rem 1rem;font-size:.78rem;color:#bfb5a3;margin-bottom:.8rem"><strong style="color:#f0e6d3">Free tier</strong> — 10 items max. <a href="https://stockyard.dev/sentinel/" target="_blank" style="color:#e8753a">Upgrade to Pro →</a></div><div class="overview" id="ov"></div>
-<div class="tabs"><div class="tab active" data-tab="alerts" onclick="switchTab('alerts')">Alerts</div><div class="tab" data-tab="rules" onclick="switchTab('rules')">Rules</div></div>
-<div id="pane-alerts"><div id="alertList"></div></div><div id="pane-rules" style="display:none"><div id="ruleList"></div></div></div><div id="modal"></div>
+
+func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+	w.Write([]byte(dashHTML))
+}
+
+const dashHTML = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Sentinel</title>
+<style>
+:root{--bg:#1a1410;--bg2:#241e18;--bg3:#2e261e;--rust:#e8753a;--leather:#a0845c;--cream:#f0e6d3;--cd:#bfb5a3;--cm:#7a7060;--gold:#d4a843;--green:#4a9e5c;--red:#c94444;--orange:#d4843a;--mono:'JetBrains Mono',monospace;--serif:'Libre Baskerville',serif}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--cream);font-family:var(--serif);line-height:1.6}
+.hdr{padding:1rem 1.5rem;border-bottom:1px solid var(--bg3);display:flex;justify-content:space-between;align-items:center}
+.hdr h1{font-family:var(--mono);font-size:.9rem;letter-spacing:2px}
+.stats{display:flex;gap:1.2rem;font-family:var(--mono);font-size:.7rem}
+.stat-fire{color:var(--red)}.stat-ack{color:var(--orange)}.stat-ok{color:var(--green)}
+.tabs{display:flex;border-bottom:1px solid var(--bg3);padding:0 1.5rem;font-family:var(--mono);font-size:.75rem}
+.tab{padding:.7rem 1.2rem;cursor:pointer;color:var(--cm);border-bottom:2px solid transparent}.tab:hover{color:var(--cream)}.tab.active{color:var(--rust);border-color:var(--rust)}
+.ct{padding:1.5rem;max-width:900px;margin:0 auto}
+.card{background:var(--bg2);border:1px solid var(--bg3);margin-bottom:.5rem;padding:.8rem 1rem}
+.card-top{display:flex;justify-content:space-between;align-items:center}
+.badge{font-family:var(--mono);font-size:.55rem;padding:.12rem .4rem;text-transform:uppercase;letter-spacing:1px}
+.b-critical{background:#c9444433;color:#ff6b6b;border:1px solid #c9444455}
+.b-warning{background:#d4843a22;color:var(--orange);border:1px solid #d4843a44}
+.b-info{background:#4a7ec922;color:#6ba3e8;border:1px solid #4a7ec944}
+.b-firing{background:#c9444422;color:var(--red);border:1px solid #c9444444}
+.b-acked{background:#d4843a22;color:var(--orange);border:1px solid #d4843a44}
+.b-resolved{background:#4a9e5c22;color:var(--green);border:1px solid #4a9e5c44}
+.meta{font-family:var(--mono);font-size:.6rem;color:var(--cm);margin-top:.2rem}
+.btn{font-family:var(--mono);font-size:.6rem;padding:.25rem .6rem;cursor:pointer;border:1px solid var(--bg3);background:var(--bg);color:var(--cd)}.btn:hover{border-color:var(--leather);color:var(--cream)}
+.btn-p{background:var(--rust);border-color:var(--rust);color:var(--bg)}.btn-p:hover{opacity:.85}
+.toggle{position:relative;width:36px;height:18px;cursor:pointer;display:inline-block;vertical-align:middle}
+.toggle input{opacity:0;width:0;height:0}.toggle .sl{position:absolute;inset:0;background:var(--bg3);border-radius:9px;transition:.2s}.toggle .sl:before{content:'';position:absolute;width:14px;height:14px;left:2px;bottom:2px;background:var(--cm);border-radius:50%;transition:.2s}
+.toggle input:checked+.sl{background:var(--green)}.toggle input:checked+.sl:before{transform:translateX(18px);background:var(--cream)}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center}.modal-bg.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--bg3);padding:1.5rem;width:400px;max-width:90vw}
+.modal h2{font-family:var(--mono);font-size:.8rem;margin-bottom:1rem;color:var(--rust)}
+.fr{margin-bottom:.6rem}.fr label{display:block;font-family:var(--mono);font-size:.6rem;color:var(--cm);text-transform:uppercase;letter-spacing:1px;margin-bottom:.2rem}
+.fr input,.fr select{width:100%;padding:.4rem .6rem;background:var(--bg);border:1px solid var(--bg3);color:var(--cream);font-family:var(--mono);font-size:.78rem}
+.acts{display:flex;gap:.4rem;justify-content:flex-end;margin-top:.8rem}
+.empty{text-align:center;padding:2rem;color:var(--cm);font-style:italic}
+.pulse{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--red);margin-right:.3rem;animation:p 1.5s infinite}@keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
+</style></head><body>
+<div class="hdr"><h1>SENTINEL</h1><div class="stats" id="st"></div></div>
+<div class="tabs"><div class="tab active" onclick="show('alerts')">Alerts</div><div class="tab" onclick="show('rules')">Rules</div></div>
+<div class="ct" id="main"></div>
+<div class="modal-bg" id="mbg" onclick="if(event.target===this)cm()"><div class="modal" id="mdl"></div></div>
 <script>
-async function api(u,o){return(await fetch(u,o)).json()}
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
-function timeAgo(d){if(!d)return'';const s=Math.floor((Date.now()-new Date(d))/1e3);if(s<60)return s+'s ago';if(s<3600)return Math.floor(s/60)+'m ago';return Math.floor(s/3600)+'h ago'}
-async function init(){const sd=await api('/api/stats');document.getElementById('ov').innerHTML='<div class="stat"><b style="color:'+(sd.firing?'var(--red)':'var(--green)')+'">'+sd.firing+'</b>Firing</div><div class="stat"><b>'+sd.acked+'</b>Acked</div><div class="stat"><b style="color:var(--green)">'+sd.resolved+'</b>Resolved</div><div class="stat"><b>'+sd.rules+'</b>Rules</div>';loadAlerts();loadRules()}
-async function loadAlerts(){const d=await api('/api/alerts');const alerts=d.alerts||[];
-document.getElementById('alertList').innerHTML=alerts.length?alerts.map(a=>'<div class="alert-row"><span class="sev sev-'+a.severity+'">'+a.severity+'</span><span class="st-'+a.status+'" style="font-weight:700;width:50px">'+a.status+'</span><span class="alert-msg">'+esc(a.message||a.rule_name)+'</span><span class="alert-src">'+esc(a.source)+'</span><span style="color:var(--cm);font-size:.6rem">'+timeAgo(a.fired_at)+'</span>'+
-(a.status==='firing'?'<button class="btn btn-s" style="font-size:.55rem;padding:.1rem .3rem" onclick="ack(\''+a.id+'\')">Ack</button><button class="btn btn-p" style="font-size:.55rem;padding:.1rem .3rem" onclick="resolve(\''+a.id+'\')">Resolve</button>':'')+
-(a.status==='acked'?'<button class="btn btn-p" style="font-size:.55rem;padding:.1rem .3rem" onclick="resolve(\''+a.id+'\')">Resolve</button>':'')+'</div>').join(''):'<div class="empty">No alerts. All quiet.</div>'}
-async function loadRules(){const d=await api('/api/rules');const rules=d.rules||[];
-document.getElementById('ruleList').innerHTML=rules.length?rules.map(r=>'<div class="alert-row"><span class="sev sev-'+r.severity+'">'+r.severity+'</span><span style="flex:1;font-weight:600">'+esc(r.name)+'</span><span style="color:var(--cm);font-size:.65rem">'+r.fire_count+' fires</span><span style="cursor:pointer;font-size:.55rem;color:var(--cm)" onclick="delRule(\''+r.id+'\')">del</span></div>').join(''):'<div class="empty">No rules yet.</div>'}
-async function ack(id){await api('/api/alerts/'+id+'/ack',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({by:'dashboard'})});init()}
-async function resolve(id){await api('/api/alerts/'+id+'/resolve',{method:'POST'});init()}
-async function delRule(id){await api('/api/rules/'+id,{method:'DELETE'});init()}
-function switchTab(t){document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',el.dataset.tab===t));document.getElementById('pane-alerts').style.display=t==='alerts'?'':'none';document.getElementById('pane-rules').style.display=t==='rules'?'':'none'}
-function showNewRule(){document.getElementById('modal').innerHTML='<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal"><h2>New Alert Rule</h2><label class="fl">Name</label><input type="text" id="nr-name" placeholder="High CPU"><label class="fl">Severity</label><select id="nr-sev"><option>warning</option><option>critical</option><option>info</option></select><label class="fl">Description</label><input type="text" id="nr-desc"><div style="display:flex;gap:.5rem;margin-top:1rem"><button class="btn btn-p" onclick="saveRule()">Create</button><button class="btn" style="border-color:var(--bg3);color:var(--cm)" onclick="closeModal()">Cancel</button></div></div></div>'}
-async function saveRule(){const b={name:document.getElementById('nr-name').value,severity:document.getElementById('nr-sev').value,description:document.getElementById('nr-desc').value};if(!b.name){alert('Required');return};await api('/api/rules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});closeModal();init()}
-function closeModal(){document.getElementById('modal').innerHTML=''}
-init();setInterval(init,10000)
-fetch('/api/tier').then(r=>r.json()).then(j=>{if(j.tier==='free'){var b=document.getElementById('upgrade-banner');if(b)b.style.display='block'}}).catch(()=>{var b=document.getElementById('upgrade-banner');if(b)b.style.display='block'});
+const A='/api';let tab='alerts',rules=[],alerts=[];
+async function ld(){const[r,a,s]=await Promise.all([fetch(A+'/rules').then(r=>r.json()),fetch(A+'/alerts').then(r=>r.json()),fetch(A+'/stats').then(r=>r.json())]);rules=r.rules||[];alerts=a.alerts||[];
+document.getElementById('st').innerHTML=(s.firing?'<span class="stat-fire"><span class="pulse"></span>'+s.firing+' firing</span>':'')+'<span class="stat-ack">'+s.acked+' acked</span><span class="stat-ok">'+s.resolved+' resolved</span><span style="color:var(--cm)">'+s.rules+' rules</span>';rn();}
+function show(t){tab=t;document.querySelectorAll('.tab').forEach((e,i)=>e.classList.toggle('active',['alerts','rules'][i]===t));rn();}
+function rn(){const m=document.getElementById('main');if(tab==='rules'){rRules(m)}else{rAlerts(m)}}
+function rAlerts(m){let h='<div style="display:flex;justify-content:space-between;margin-bottom:1rem"><div style="display:flex;gap:.3rem"><button class="btn'+(filt===''?' btn-p':'')+'" onclick="setF(\'\')">All</button><button class="btn'+(filt==='firing'?' btn-p':'')+'" onclick="setF(\'firing\')">Firing</button><button class="btn'+(filt==='acked'?' btn-p':'')+'" onclick="setF(\'acked\')">Acked</button><button class="btn'+(filt==='resolved'?' btn-p':'')+'" onclick="setF(\'resolved\')">Resolved</button></div><button class="btn btn-p" onclick="oFire()">Fire Alert</button></div>';
+if(!alerts.length){h+='<div class="empty">No alerts. That\'s good.</div>';}
+alerts.forEach(a=>{h+='<div class="card"><div class="card-top"><div><span class="badge b-'+a.severity+'">'+a.severity+'</span> <span style="font-family:var(--mono);font-size:.8rem">'+esc(a.rule_name||'Manual')+'</span></div><span class="badge b-'+a.status+'">'+a.status+'</span></div>';
+if(a.message)h+='<div style="font-size:.78rem;color:var(--cd);margin-top:.3rem">'+esc(a.message)+'</div>';
+h+='<div class="meta">'+esc(a.source||'')+' &middot; fired '+ft(a.fired_at);if(a.acked_at)h+=' &middot; acked '+ft(a.acked_at);if(a.resolved_at)h+=' &middot; resolved '+ft(a.resolved_at);h+='</div>';
+h+='<div style="display:flex;gap:.3rem;margin-top:.4rem">';if(a.status==='firing')h+='<button class="btn" onclick="ack(\''+a.id+'\')">Acknowledge</button>';if(a.status!=='resolved')h+='<button class="btn" onclick="res(\''+a.id+'\')">Resolve</button>';h+='</div></div>';});m.innerHTML=h;}
+function rRules(m){let h='<div style="display:flex;justify-content:space-between;margin-bottom:1rem"><span style="font-family:var(--mono);font-size:.75rem;color:var(--leather)">ALERT RULES</span><button class="btn btn-p" onclick="oRule()">+ New Rule</button></div>';
+if(!rules.length){h+='<div class="empty">No rules configured. Create your first alert rule.</div>';}
+rules.forEach(r=>{h+='<div class="card"><div class="card-top"><div><span class="badge b-'+r.severity+'">'+r.severity+'</span> <span style="font-family:var(--mono);font-size:.8rem">'+esc(r.name)+'</span> <label class="toggle"><input type="checkbox" '+(r.enabled?'checked':'')+' onchange="tog(\''+r.id+'\')"><span class="sl"></span></label></div><button class="btn" onclick="del(\''+r.id+'\')" style="font-size:.55rem;color:var(--red)">Delete</button></div>';
+if(r.description)h+='<div style="font-size:.78rem;color:var(--cd);margin-top:.2rem">'+esc(r.description)+'</div>';
+h+='<div class="meta">channel: '+esc(r.channel||'none')+' &middot; fired '+r.fire_count+'x';if(r.last_fired)h+=' &middot; last: '+ft(r.last_fired);h+='</div></div>';});m.innerHTML=h;}
+let filt='';async function setF(f){filt=f;const r=await fetch(A+'/alerts?status='+f).then(r=>r.json());alerts=r.alerts||[];rn();}
+async function ack(id){await fetch(A+'/alerts/'+id+'/ack',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({by:'admin'})});ld();}
+async function res(id){await fetch(A+'/alerts/'+id+'/resolve',{method:'PATCH'});ld();}
+async function tog(id){await fetch(A+'/rules/'+id+'/toggle',{method:'PATCH'});ld();}
+async function del(id){if(confirm('Delete rule?')){await fetch(A+'/rules/'+id,{method:'DELETE'});ld();}}
+function oRule(){document.getElementById('mdl').innerHTML='<h2>New Alert Rule</h2><div class="fr"><label>Name</label><input id="rn" placeholder="e.g. High Error Rate"></div><div class="fr"><label>Severity</label><select id="rs"><option value="info">Info</option><option value="warning" selected>Warning</option><option value="critical">Critical</option></select></div><div class="fr"><label>Channel</label><input id="rc" placeholder="e.g. slack, email, webhook"></div><div class="fr"><label>Description</label><input id="rd" placeholder="When to fire this rule"></div><div class="acts"><button class="btn" onclick="cm()">Cancel</button><button class="btn btn-p" onclick="sRule()">Create</button></div>';document.getElementById('mbg').classList.add('open');}
+async function sRule(){await fetch(A+'/rules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:document.getElementById('rn').value,severity:document.getElementById('rs').value,channel:document.getElementById('rc').value,description:document.getElementById('rd').value})});cm();ld();}
+function oFire(){let opts=rules.map(r=>'<option value="'+r.id+'">'+esc(r.name)+'</option>').join('');document.getElementById('mdl').innerHTML='<h2>Fire Alert</h2><div class="fr"><label>Rule</label><select id="fr"><option value="">Manual (no rule)</option>'+opts+'</select></div><div class="fr"><label>Message</label><input id="fm" placeholder="What happened"></div><div class="fr"><label>Source</label><input id="fs" placeholder="e.g. api-server, monitor"></div><div class="acts"><button class="btn" onclick="cm()">Cancel</button><button class="btn btn-p" onclick="sFire()">Fire</button></div>';document.getElementById('mbg').classList.add('open');}
+async function sFire(){await fetch(A+'/alerts/fire',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({rule_id:document.getElementById('fr').value,message:document.getElementById('fm').value,source:document.getElementById('fs').value})});cm();ld();}
+function cm(){document.getElementById('mbg').classList.remove('open');}
+function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function ft(t){if(!t)return'';const d=new Date(t);return d.toLocaleDateString()+' '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}
+ld();
 </script></body></html>`
