@@ -20,12 +20,12 @@ func New(db *store.DB, limits Limits) *Server {
 	s.mux.HandleFunc("POST /api/rules", s.createRule)
 	s.mux.HandleFunc("GET /api/rules/{id}", s.getRule)
 	s.mux.HandleFunc("DELETE /api/rules/{id}", s.deleteRule)
-	s.mux.HandleFunc("PATCH /api/rules/{id}/toggle", s.toggleRule)
+	s.mux.HandleFunc("POST /api/rules/{id}/toggle", s.toggleRule)
 
 	s.mux.HandleFunc("GET /api/alerts", s.listAlerts)
 	s.mux.HandleFunc("POST /api/alerts/fire", s.fireAlert)
-	s.mux.HandleFunc("PATCH /api/alerts/{id}/ack", s.ackAlert)
-	s.mux.HandleFunc("PATCH /api/alerts/{id}/resolve", s.resolveAlert)
+	s.mux.HandleFunc("POST /api/alerts/{id}/ack", s.ackAlert)
+	s.mux.HandleFunc("POST /api/alerts/{id}/resolve", s.resolveAlert)
 
 	s.mux.HandleFunc("GET /api/stats", s.stats)
 	s.mux.HandleFunc("GET /api/health", s.health)
